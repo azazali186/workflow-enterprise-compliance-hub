@@ -1,0 +1,21 @@
+# Binaries
+/bin/
+*.exe
+*.out
+
+bin/
+
+# Env & secrets
+.env
+
+# Test artifacts
+coverage.out
+*.prof
+/tmp/
+
+# Generated route manifest
+routes.json
+
+# IDE
+.idea/
+.vscode/

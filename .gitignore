@@ -1,0 +1,51 @@
+# Binaries
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+.freebuff/
+
+# Test binary
+*.test
+
+.gomodcache/
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build
+bin/
+
+# Migration files
+migrations/*.sql
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+temp/
