@@ -22,6 +22,7 @@ import (
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/notification"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/regulation"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/reporting"
+	rolemodule "github.com/aeroxe/compliance-hub/backend/internal/modules/role"
 	sagamodule "github.com/aeroxe/compliance-hub/backend/internal/modules/saga"
 	usermodule "github.com/aeroxe/compliance-hub/backend/internal/modules/user"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/violation"
@@ -57,6 +58,7 @@ func registerRoutes(h *server.Hertz, d deps.Deps, cfg *config.Config) {
 	deadline.RegisterRoutes(api, d)
 	sagamodule.RegisterRoutes(api, d)
 	usermodule.RegisterRoutes(api, d)
+	rolemodule.RegisterRoutes(api, d)
 
 	// Platform endpoints.
 	h.POST("/events", eventsHandler(d))

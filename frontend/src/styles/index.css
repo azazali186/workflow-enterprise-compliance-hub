@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+/*
+ * ComplianceHub design system — Tailwind CSS v4 tokens.
+ * Aesthetic: minimal, layered, premium (Stripe / Linear / Apple).
+ * Brand: violet-indigo "iris" on a cool neutral canvas, dark ink sidebar.
+ */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  /* Brand — iris */
+  --color-primary-50: #eef0fd;
+  --color-primary-100: #e0e2fb;
+  --color-primary-200: #c6c9f7;
+  --color-primary-300: #a4a6f1;
+  --color-primary-400: #8381e9;
+  --color-primary-500: #6b68e0;
+  --color-primary-600: #5b5bd6;
+  --color-primary-700: #4a46c4;
+  --color-primary-800: #3c3a9e;
+  --color-primary-900: #33327d;
+  --color-primary-950: #1e1d48;
+
+  /* Semantic */
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-200: #a7f3d0;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-500: #0ea5e9;
+  --color-info-600: #0284c7;
+
+  /* Surfaces */
+  --color-canvas: #f6f6fa;
+  --color-ink-900: #16161e;
+  --color-ink-950: #101016;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgb(16 16 22 / 0.04), 0 1px 3px rgb(16 16 22 / 0.06);
+  --shadow-pop: 0 4px 6px -2px rgb(16 16 22 / 0.06),
+    0 12px 24px -6px rgb(16 16 22 / 0.12);
+  --shadow-lift: 0 8px 12px -4px rgb(16 16 22 / 0.08),
+    0 20px 40px -12px rgb(16 16 22 / 0.18);
+  --shadow-modal: 0 0 0 1px rgb(16 16 22 / 0.05), 0 24px 48px -12px rgb(16 16 22 / 0.25);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-slate-900);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Visible, consistent keyboard focus */
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Thin, quiet scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(100 116 139 / 0.35) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(100 116 139 / 0.3);
+    border-radius: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Tabular figures for data columns and timers */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Respect reduced motion globally */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Brand mark used in the sidebar and login panel */
+  .brand-mark {
+    background: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-700) 100%);
+    box-shadow: 0 4px 12px -2px rgb(91 91 214 / 0.5);
+  }
+
+  /* Skeleton shimmer sweep */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-slate-100);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.65),
+      transparent
+    );
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+  @keyframes skeleton-sweep {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Subtle entry fade for query-driven blocks (cheap, no layout shift) */
+  .fade-in {
+    animation: fade-in 240ms ease-out both;
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
