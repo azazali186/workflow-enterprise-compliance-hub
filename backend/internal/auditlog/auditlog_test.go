@@ -155,6 +155,96 @@ func TestRecordPersistsSnapshotsAndDiff(t *testing.T) {
 	}
 }
 
+func TestDiffRedactsSensitiveKeys(t *testing.T) {
+	// A password added between snapshots surfaces as [REDACTED] — never the value.
+	changes := Diff(
+		map[string]any{"name": "api"},
+		map[string]any{"name": "api", "password": "hunter2"},
+	)
+	c, ok := changes["password"]
+	if !ok {
+		t.Fatal("password change not recorded")
+	}
+	if c.Before != nil || c.After != "[REDACTED]" {
+		t.Errorf("password change = %+v, want nil -> [REDACTED]", c)
+	}
+
+	// A nested token that changed on both sides redacts to the same value, so
+	// the parent field must NOT surface as a change (its only difference is a
+	// secret that must never reach the trail).
+	hasChange := Diff(
+		map[string]any{"config": map[string]any{"access_token": "a", "owner": "alice"}},
+		map[string]any{"config": map[string]any{"access_token": "b", "owner": "alice"}},
+	)
+	if _, ok := hasChange["config"]; ok {
+		t.Error("config must not appear — its only difference is a redacted token")
+	}
+}
+
+func TestRedactCatchesCamelCaseAndSparesLegitimateKeys(t *testing.T) {
+	snap := map[string]any{
+		"accessToken":    "jwt-abc",
+		"passwordHash":   "$2a$10$...",
+		"bypass_reason":  "control bypassed", // must survive — only the bare "pass"
+		"key":            "document-42",      // bare "key" must survive
+		"compliance_key": "id-7",             // qualified with _key but not a secret form
+	}
+	redacted := redact(toMap(snap)).(map[string]any)
+	if redacted["accessToken"] != "[REDACTED]" {
+		t.Errorf("accessToken = %v, want [REDACTED]", redacted["accessToken"])
+	}
+	if redacted["passwordHash"] != "[REDACTED]" {
+		t.Errorf("passwordHash = %v, want [REDACTED]", redacted["passwordHash"])
+	}
+	if redacted["bypass_reason"] != "control bypassed" {
+		t.Errorf("bypass_reason = %v, want unchanged", redacted["bypass_reason"])
+	}
+	if redacted["key"] != "document-42" {
+		t.Errorf("key = %v, want unchanged", redacted["key"])
+	}
+	if redacted["compliance_key"] != "id-7" {
+		t.Errorf("compliance_key = %v, want unchanged", redacted["compliance_key"])
+	}
+}
+
+func TestRecordRedactsMetadata(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	pinSingleConnection(t, db)
+	if err := db.AutoMigrate(&models.AuditLog{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	if err := Record(context.Background(), db, Entry{
+		Action:   "login",
+		Status:   "failure",
+		Metadata: map[string]any{"username": "alice", "password": "s3cr3t", "nested": map[string]any{"api_key": "ak-live-123"}},
+	}); err != nil {
+		t.Fatalf("Record: %v", err)
+	}
+
+	var row models.AuditLog
+	if err := db.First(&row).Error; err != nil {
+		t.Fatalf("load row: %v", err)
+	}
+	var meta map[string]any
+	_ = json.Unmarshal(row.Metadata, &meta)
+	if meta["username"] != "alice" {
+		t.Errorf("username = %v, want alice (non-sensitive key must survive)", meta["username"])
+	}
+	if meta["password"] != "[REDACTED]" {
+		t.Errorf("password = %v, want [REDACTED]", meta["password"])
+	}
+	nested, ok := meta["nested"].(map[string]any)
+	if !ok || nested["api_key"] != "[REDACTED]" {
+		t.Errorf("nested api_key = %v, want [REDACTED]", meta["nested"])
+	}
+}
+
 func TestRecordFailureStatus(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),

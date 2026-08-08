@@ -2,7 +2,9 @@ package outbox
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -197,6 +199,57 @@ func TestPoisonedEventDeadLettersWithoutBlocking(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("healthy event never delivered — poisoned head must not block the batch")
+	}
+}
+
+func TestPayloadEncryptedAtRestDeliveredPlaintext(t *testing.T) {
+	db, fb, d := newOutboxEnv(t)
+	ctx := context.Background()
+
+	const secret = "super-secret-payload-value"
+	if _, err := Insert(ctx, db, "enc.subject", "enc.event", map[string]any{"secret": secret, "n": 42}); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+
+	// The stored row must be ciphertext — never the plaintext. The ciphertext
+	// lives inside a valid JSON string (jsonb column), so unquote it exactly
+	// like the dispatcher does before asserting the enc:v1 prefix.
+	var row models.OutboxEvent
+	if err := db.First(&row).Error; err != nil {
+		t.Fatalf("load row: %v", err)
+	}
+	var stored string
+	if err := json.Unmarshal(row.Payload, &stored); err != nil {
+		t.Fatalf("stored payload is not a valid JSON string: %v (raw %q)", err, string(row.Payload))
+	}
+	// Versioned ciphertext prefix: enc:k<keyID>: (see internal/crypto).
+	if !strings.HasPrefix(stored, "enc:k") {
+		t.Errorf("stored payload %q is not encrypted", stored[:min(len(stored), 12)])
+	}
+	if strings.Contains(stored, secret) {
+		t.Fatal("plaintext leaked into the outbox table")
+	}
+
+	// The dispatcher must deliver the decrypted plaintext to the bus.
+	if err := d.dispatchBatch(ctx); err != nil {
+		t.Fatalf("dispatchBatch: %v", err)
+	}
+	fb.mu.Lock()
+	defer fb.mu.Unlock()
+	if len(fb.delivered) != 1 {
+		t.Fatalf("delivered = %d, want 1", len(fb.delivered))
+	}
+	e := fb.delivered[0]
+	raw, ok := e.Payload.(json.RawMessage)
+	if !ok {
+		t.Fatalf("payload type = %T, want json.RawMessage", e.Payload)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshal delivered payload: %v", err)
+	}
+	if got["secret"] != secret || got["n"] != float64(42) {
+		t.Errorf("delivered payload = %v, want {secret, 42}", got)
 	}
 }
 

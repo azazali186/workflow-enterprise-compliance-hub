@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -16,11 +17,16 @@ type Config struct {
 	ServerAddr             string
 	Env                    string
 	LogLevel               string
+	LogFormat              string
 	DatabaseURL            string
 	RedisURL               string
 	NATSURL                string
 	JWTSecret              string
 	JWTExpiry              time.Duration
+	EncryptionKey          string   // AES-256-GCM at-rest key (hex/base64/raw 32B)
+	PreviousEncryptionKeys []string // keys still readable during rotation (dual-read)
+	AutoReencrypt          bool     // migrate old-key rows to the current key on boot
+	CORSAllowedOrigins     []string
 	WSMaxConnections       int
 	WSPingInterval         time.Duration
 	RateLimitPerMinute     int
@@ -71,11 +77,16 @@ func Load() (*Config, error) {
 		ServerAddr:             ":" + port,
 		Env:                    getEnv("ENV", "development"),
 		LogLevel:               getEnv("LOG_LEVEL", "debug"),
+		LogFormat:              getEnv("LOG_FORMAT", "text"),
 		DatabaseURL:            getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/compliance-hub?sslmode=disable"),
 		RedisURL:               getEnv("REDIS_URL", "redis://localhost:6379"),
 		NATSURL:                getEnv("NATS_URL", "nats://localhost:4222"),
 		JWTSecret:              getEnv("JWT_SECRET", "dev-only-secret"),
 		JWTExpiry:              jwtExpiry,
+		EncryptionKey:          getEnv("ENCRYPTION_KEY", ""),
+		PreviousEncryptionKeys: splitList(os.Getenv("ENCRYPTION_KEY_PREVIOUS")),
+		AutoReencrypt:          os.Getenv("AUTO_REENCRYPT") != "false",
+		CORSAllowedOrigins:     splitList(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		WSMaxConnections:       wsMax,
 		WSPingInterval:         wsPing,
 		RateLimitPerMinute:     rateLimit,
@@ -93,7 +104,28 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("JWT_SECRET must be set to a non-default value when ENV != development")
 	}
 
+	// The at-rest encryption key protects outbox payloads and Secret columns.
+	// Outside development it must be a real, configured key — never the
+	// dev-only fallback.
+	if cfg.Env != "development" && cfg.EncryptionKey == "" {
+		return nil, fmt.Errorf("ENCRYPTION_KEY must be set (32 bytes, hex or base64) when ENV != development")
+	}
+
 	return cfg, nil
+}
+
+// splitList splits a comma-separated env value into trimmed, non-empty items.
+func splitList(v string) []string {
+	if v == "" {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func getEnv(key, fallback string) string {

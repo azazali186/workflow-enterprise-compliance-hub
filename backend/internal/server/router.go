@@ -73,7 +73,9 @@ func registerRoutes(h *server.Hertz, d deps.Deps, cfg *config.Config) {
 
 	// The WebSocket handshake is public to rbac (browsers cannot send
 	// Authorization headers), so the hub validates the bearer token itself
-	// (?token= or Authorization) before upgrading.
+	// (Authorization header or Sec-WebSocket-Protocol: bearer.<token>) before
+	// upgrading. The ?token= query parameter is not supported: tokens must
+	// never appear in URLs where access logs would capture them.
 	h.GET("/ws", func(ctx context.Context, c *app.RequestContext) {
 		d.Hub.HandleHTTPAuth(ctx, c, cfg, d.Cache)
 	})

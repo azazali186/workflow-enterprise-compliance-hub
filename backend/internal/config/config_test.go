@@ -66,8 +66,64 @@ func TestLoadInvalidDuration(t *testing.T) {
 	}
 }
 
+func TestProdRequiresEncryptionKey(t *testing.T) {
+	clearEnv()
+	t.Setenv("ENV", "production")
+	t.Setenv("JWT_SECRET", "a-real-production-secret")
+
+	// No ENCRYPTION_KEY => refuse to boot.
+	t.Setenv("ENCRYPTION_KEY", "")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() expected error: production requires ENCRYPTION_KEY")
+	}
+
+	// A real key => boot succeeds.
+	t.Setenv("ENCRYPTION_KEY", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	if _, err := Load(); err != nil {
+		t.Fatalf("Load() with encryption key: %v", err)
+	}
+}
+
+func TestEncryptionRotationParsing(t *testing.T) {
+	clearEnv()
+	t.Setenv("ENCRYPTION_KEY_PREVIOUS", " key-a , key-b ,")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load(): %v", err)
+	}
+	if len(cfg.PreviousEncryptionKeys) != 2 || cfg.PreviousEncryptionKeys[0] != "key-a" || cfg.PreviousEncryptionKeys[1] != "key-b" {
+		t.Errorf("PreviousEncryptionKeys = %v, want [key-a key-b]", cfg.PreviousEncryptionKeys)
+	}
+	if !cfg.AutoReencrypt {
+		t.Error("AutoReencrypt default = false, want true")
+	}
+	t.Setenv("AUTO_REENCRYPT", "false")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("Load(): %v", err)
+	}
+	if cfg.AutoReencrypt {
+		t.Error("AutoReencrypt with AUTO_REENCRYPT=false = true, want false")
+	}
+}
+
+func TestCORSAllowlistParsing(t *testing.T) {
+	clearEnv()
+	t.Setenv("CORS_ALLOWED_ORIGINS", " https://app.example.com , http://localhost:3000 ,")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load(): %v", err)
+	}
+	if len(cfg.CORSAllowedOrigins) != 2 {
+		t.Fatalf("CORSAllowedOrigins = %v, want 2 entries", cfg.CORSAllowedOrigins)
+	}
+	if cfg.CORSAllowedOrigins[0] != "https://app.example.com" || cfg.CORSAllowedOrigins[1] != "http://localhost:3000" {
+		t.Errorf("CORSAllowedOrigins = %v", cfg.CORSAllowedOrigins)
+	}
+}
+
 func clearEnv() {
-	for _, k := range []string{"PORT", "ENV", "LOG_LEVEL", "DATABASE_URL", "REDIS_URL", "NATS_URL", "JWT_SECRET", "JWT_EXPIRY", "WS_MAX_CONNECTIONS", "WS_PING_INTERVAL", "RATE_LIMIT_PER_MINUTE", "DEADLINE_JOB_INTERVAL"} {
+	for _, k := range []string{"PORT", "ENV", "LOG_LEVEL", "LOG_FORMAT", "DATABASE_URL", "REDIS_URL", "NATS_URL", "JWT_SECRET", "JWT_EXPIRY", "ENCRYPTION_KEY", "ENCRYPTION_KEY_PREVIOUS", "AUTO_REENCRYPT", "CORS_ALLOWED_ORIGINS", "WS_MAX_CONNECTIONS", "WS_PING_INTERVAL", "RATE_LIMIT_PER_MINUTE", "DEADLINE_JOB_INTERVAL"} {
 		_ = os.Unsetenv(k)
 	}
 }

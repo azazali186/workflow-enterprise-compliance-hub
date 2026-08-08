@@ -24,14 +24,28 @@ import (
 // implements http.Hijacker (required by coder/websocket) and blocks until the
 // hijacked connection closes, which keeps the request context alive for the
 // lifetime of the socket.
-func (h *Hub) HandleHTTP(ctx context.Context, c *app.RequestContext) {
+// accept performs the HTTP->WebSocket upgrade. When subprotocol is non-empty
+// it is offered to coder/websocket so the client's Sec-WebSocket-Protocol
+// handshake is echoed back — browsers abort the upgrade when they send a
+// subprotocol and the server does not echo one.
+//
+// There is intentionally no public (unauthenticated) upgrade path: every
+// registered /ws route goes through HandleHTTPAuth, so the event stream is
+// always identity-checked.
+func (h *Hub) accept(ctx context.Context, c *app.RequestContext, subprotocol string) {
 	adaptor.HertzHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// An empty OriginPatterns list means "allow all origins" in
 		// coder/websocket (browser clients always send an Origin header), which
 		// keeps the hub consistent with the permissive CORS middleware.
-		conn, err := websocket.Accept(w, r, nil)
+		var opts *websocket.AcceptOptions
+		if subprotocol != "" {
+			opts = &websocket.AcceptOptions{Subprotocols: []string{subprotocol}}
+		}
+		conn, err := websocket.Accept(w, r, opts)
 		if err != nil {
-			slog.Warn("websocket upgrade failed", "error", err, "url", r.URL.String())
+			// Log only the path, never the raw URL: a stale client that still
+			// appends ?token= must not be able to push a JWT into the logs.
+			slog.Warn("websocket upgrade failed", "error", err, "path", r.URL.Path)
 			http.Error(w, "websocket upgrade failed", http.StatusBadRequest)
 			return
 		}
@@ -47,14 +61,18 @@ func (h *Hub) HandleHTTP(ctx context.Context, c *app.RequestContext) {
 
 // HandleHTTPAuth upgrades a /ws connection only after validating the caller's
 // bearer token (JWT signature + active single-session fingerprint), so the
-// event stream is protected by the same RBAC identity as the REST API. The
-// token is read from the ?token= query parameter (browser clients cannot set
-// headers on the WebSocket handshake) or the Authorization header.
+// event stream is protected by the same RBAC identity as the REST API.
+//
+// The token is carried either in the Authorization header (non-browser
+// clients) or in the Sec-WebSocket-Protocol subprotocol as "bearer.<token>"
+// (browser clients cannot set headers on the WebSocket handshake). The
+// ?token= query parameter is deliberately NOT supported: tokens in URLs end
+// up in access logs.
 func (h *Hub) HandleHTTPAuth(ctx context.Context, c *app.RequestContext, cfg *config.Config, cache cache.Cache) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	tokenStr := wsToken(c)
+	tokenStr, subprotocol := wsToken(c)
 	if tokenStr == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, map[string]any{"error": "missing or invalid token"})
 		return
@@ -72,20 +90,35 @@ func (h *Hub) HandleHTTPAuth(ctx context.Context, c *app.RequestContext, cfg *co
 
 	// Stash the identity so downstream audit/hub logging can attribute events.
 	c.Set("auth_user_id", claims.UserID)
-	h.HandleHTTP(ctx, c)
+	h.accept(ctx, c, subprotocol)
 }
 
-// wsToken extracts the bearer token from the query string or Authorization
-// header of a WebSocket handshake.
-func wsToken(c *app.RequestContext) string {
-	if t := string(c.Query("token")); t != "" {
-		return t
-	}
+// wsAuthPrefix marks the Sec-WebSocket-Protocol subprotocol that carries the
+// bearer token for browser clients.
+const wsAuthPrefix = "bearer."
+
+// wsToken extracts the bearer token from a WebSocket handshake and returns it
+// together with the exact subprotocol value that must be echoed back on
+// Accept so the browser handshake completes.
+//
+// Precedence: Authorization: Bearer <token> first, then the first
+// "bearer.<token>" entry in Sec-WebSocket-Protocol. Query parameters are
+// never inspected — tokens must not ride in URLs.
+func wsToken(c *app.RequestContext) (token, subprotocol string) {
 	authorization := string(c.GetHeader("Authorization"))
 	if len(authorization) > 7 && strings.HasPrefix(strings.ToLower(authorization), "bearer ") {
-		return strings.TrimSpace(authorization[7:])
+		return strings.TrimSpace(authorization[7:]), ""
 	}
-	return ""
+	for _, sp := range strings.Split(string(c.GetHeader("Sec-WebSocket-Protocol")), ",") {
+		sp = strings.TrimSpace(sp)
+		token, ok := strings.CutPrefix(strings.ToLower(sp), wsAuthPrefix)
+		if ok && token != "" {
+			// Echo the client's exact (case-preserved) value so coder/websocket
+			// matches and the browser handshake completes.
+			return sp[len(wsAuthPrefix):], sp
+		}
+	}
+	return "", ""
 }
 
 func splitTopics(raw string) []string {

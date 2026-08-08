@@ -46,6 +46,12 @@ services:
       REDIS_URL: redis://redis:6379
       NATS_URL: nats://nats:4222
       JWT_SECRET: change-me-in-prod
+      # 32-byte key (hex or base64) for at-rest encryption of outbox payloads.
+      ENCRYPTION_KEY: ""
+      # Previous key kept readable during rotation; migrate old rows with AUTO_REENCRYPT.
+      ENCRYPTION_KEY_PREVIOUS: ""
+      LOG_FORMAT: json
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
       WS_MAX_CONNECTIONS: "1000"
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: change-me-in-prod

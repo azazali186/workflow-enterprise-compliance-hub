@@ -28,7 +28,7 @@ func New(cfg *config.Config, d deps.Deps) *server.Hertz {
 	h.Use(recovery())
 	h.Use(requestID())
 	h.Use(logging(d.Logger))
-	h.Use(cors())
+	h.Use(cors(cfg))
 	h.Use(rateLimit(d.Cache, cfg.RateLimitPerMinute))
 	h.Use(metrics.Middleware())
 

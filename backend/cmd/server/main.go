@@ -13,10 +13,13 @@ import (
 	"github.com/aeroxe/compliance-hub/backend/internal/bus"
 	"github.com/aeroxe/compliance-hub/backend/internal/cache"
 	"github.com/aeroxe/compliance-hub/backend/internal/config"
+	"github.com/aeroxe/compliance-hub/backend/internal/crypto"
 	"github.com/aeroxe/compliance-hub/backend/internal/database"
 	"github.com/aeroxe/compliance-hub/backend/internal/deps"
+	"github.com/aeroxe/compliance-hub/backend/internal/lock"
 	"github.com/aeroxe/compliance-hub/backend/internal/permissions"
 	"github.com/aeroxe/compliance-hub/backend/internal/rbac"
+	"github.com/aeroxe/compliance-hub/backend/internal/reencrypt"
 	sagacore "github.com/aeroxe/compliance-hub/backend/internal/saga"
 	"github.com/aeroxe/compliance-hub/backend/internal/server"
 	"github.com/aeroxe/compliance-hub/backend/internal/ws"
@@ -29,7 +32,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel(cfg.LogLevel)}))
+	// Install the AES-256-GCM key ring (models.Secret, outbox payloads). The
+	// current ENCRYPTION_KEY encrypts new data; ENCRYPTION_KEY_PREVIOUS
+	// entries stay readable (dual-read) until the re-encryption worker has
+	// migrated everything to the current key.
+	if err := crypto.Setup(cfg.EncryptionKey, cfg.PreviousEncryptionKeys...); err != nil {
+		slog.Error("encryption key", "error", err)
+		os.Exit(1)
+	}
+
+	logger := newLogger(cfg)
 	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -87,7 +99,31 @@ func main() {
 		logger.Warn("rbac seed failed", "error", err)
 	}
 
+	// Key-rotation migration: re-encrypt any outbox payloads (and future
+	// Secret columns) still carrying the previous key so it can eventually be
+	// retired. Idempotent and dual-read-safe — a failure only delays the
+	// cleanup, never breaks reads.
+	if cfg.AutoReencrypt {
+		m := reencrypt.New(db)
+		if n, err := m.Run(ctx, lock.New(ctx, cfg.RedisURL)); err != nil {
+			logger.Warn("re-encryption migration failed", "error", err)
+		} else if n > 0 {
+			logger.Info("re-encrypted rows to the current key", "count", n, "key_id", crypto.CurrentKeyID())
+		}
+	}
+
 	server.Run(ctx, cfg, d, srv)
+}
+
+// newLogger builds the structured logger: JSON in production-friendly
+// environments, text locally. Log lines carry only request metadata (method,
+// path, status, latency, IP, request_id) — never bodies, headers or tokens.
+func newLogger(cfg *config.Config) *slog.Logger {
+	opts := &slog.HandlerOptions{Level: logLevel(cfg.LogLevel)}
+	if cfg.LogFormat == "json" {
+		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	}
+	return slog.New(slog.NewTextHandler(os.Stdout, opts))
 }
 
 func logLevel(level string) slog.Level {

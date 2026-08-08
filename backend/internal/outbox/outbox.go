@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/aeroxe/compliance-hub/backend/internal/bus"
+	"github.com/aeroxe/compliance-hub/backend/internal/crypto"
 	"github.com/aeroxe/compliance-hub/backend/internal/lock"
 	"github.com/aeroxe/compliance-hub/backend/internal/models"
 	"github.com/aeroxe/compliance-hub/backend/internal/resilience"
@@ -71,11 +72,29 @@ func newRow(subject, eventType string, payload any) (models.OutboxEvent, error) 
 	if err != nil {
 		return models.OutboxEvent{}, err
 	}
+	// Encrypt the payload before it touches the database: outbox rows can
+	// contain full entity snapshots (sensitive business data) and live for
+	// minutes to hours until the dispatcher drains them. The dispatcher
+	// decrypts on delivery, so bus consumers are unaffected.
+	enc, err := crypto.EncryptString(string(b))
+	if err != nil {
+		return models.OutboxEvent{}, err
+	}
+	// The payload column is jsonb: the ciphertext must be stored as a valid
+	// JSON string (quoted), not a bare string, or Postgres rejects the INSERT.
+	payloadJSON, err := json.Marshal(enc)
+	if err != nil {
+		return models.OutboxEvent{}, err
+	}
+	id, err := uuid.NewV7() // time-ordered: keeps the primary key index hot
+	if err != nil {
+		return models.OutboxEvent{}, err
+	}
 	return models.OutboxEvent{
-		ID:        uuid.New(),
+		ID:        id,
 		Subject:   subject,
 		EventType: eventType,
-		Payload:   datatypes.JSON(b),
+		Payload:   datatypes.JSON(payloadJSON),
 		CreatedAt: time.Now().UTC(),
 	}, nil
 }
@@ -187,7 +206,19 @@ func (d *Dispatcher) dispatchBatch(ctx context.Context) error {
 }
 
 func (d *Dispatcher) deliver(ctx context.Context, row *models.OutboxEvent) error {
-	payload := json.RawMessage(row.Payload)
+	// Payloads are encrypted at rest and stored as a JSON-quoted string.
+	// Unquote it first; legacy plaintext rows (raw JSON objects) fall back to
+	// the raw bytes and pass through DecryptString unchanged via the enc:v1
+	// prefix check.
+	var enc string
+	if err := json.Unmarshal(row.Payload, &enc); err != nil {
+		enc = string(row.Payload)
+	}
+	plain, err := crypto.DecryptString(enc)
+	if err != nil {
+		return fmt.Errorf("decrypt outbox payload: %w", err)
+	}
+	payload := json.RawMessage(plain)
 	e := bus.Event{
 		ID:        row.ID.String(),
 		Subject:   row.Subject,

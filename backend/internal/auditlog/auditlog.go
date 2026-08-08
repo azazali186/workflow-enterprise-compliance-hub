@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/google/uuid"
@@ -44,6 +45,57 @@ type Change struct {
 // systemColumns are never part of the change diff (identity/timestamps).
 var systemColumns = map[string]bool{
 	"id": true, "created_at": true, "updated_at": true, "deleted_at": true,
+}
+
+// sensitiveKeys never reach the audit trail: any value under one of these
+// (top-level or nested) is stored as "[REDACTED]" in snapshots, diffs and
+// metadata. This is defense in depth — PasswordHash already carries
+// json:"-" — so a stray map update can never leak a secret into the logs.
+//
+// Matching is substring-based on the normalized (lowercased, hyphen->underscore)
+// key name, which also catches camelCase variants (accessToken, passwordHash,
+// apiKey) without an explicit list. The bare word "key" is deliberately NOT
+// matched — too many legitimate fields are named "key" (identifiers, join
+// keys) — only qualified forms (api_key, secret_key, private_key, ...) are.
+var sensitiveKeys = []string{
+	"password", "passwd", // deliberately NOT the bare "pass": it would match bypass/compass
+	"token",
+	"secret",
+	"apikey", "api_key",
+	"authorization", "cookie",
+	"credential", "private_key", "client_secret",
+	"credit_card", "cc_number", "ssn", "pan",
+}
+
+func isSensitive(key string) bool {
+	norm := strings.ToLower(strings.ReplaceAll(key, "-", "_"))
+	for _, s := range sensitiveKeys {
+		if strings.Contains(norm, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// redact walks JSON-shaped values and replaces anything under a sensitive key
+// with "[REDACTED]". Maps are mutated in place; slices and scalars pass
+// through.
+func redact(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, val := range t {
+			if isSensitive(k) {
+				t[k] = "[REDACTED]"
+			} else {
+				t[k] = redact(val)
+			}
+		}
+	case []any:
+		for i, item := range t {
+			t[i] = redact(item)
+		}
+	}
+	return v
 }
 
 // Record writes the audit entry to the database. The before/after snapshots
@@ -132,7 +184,8 @@ func Diff(before, after any) map[string]Change {
 	return changes
 }
 
-// toMap normalizes any value to a JSON-shaped map (nil -> empty map).
+// toMap normalizes any value to a JSON-shaped map (nil -> empty map) with
+// sensitive keys redacted, so the field-level diff can never contain secrets.
 func toMap(v any) map[string]any {
 	if v == nil {
 		return map[string]any{}
@@ -145,7 +198,7 @@ func toMap(v any) map[string]any {
 	if err := json.Unmarshal(b, &m); err != nil {
 		return map[string]any{}
 	}
-	return m
+	return redact(m).(map[string]any)
 }
 
 func union(a, b map[string]any) map[string]struct{} {
@@ -159,12 +212,24 @@ func union(a, b map[string]any) map[string]struct{} {
 	return out
 }
 
+// marshalJSON serializes a snapshot/metadata value, routing it through the
+// same redaction as the diff so before/after JSON and metadata are scrubbed
+// before persistence.
 func marshalJSON(v any) datatypes.JSON {
 	if v == nil {
 		return nil
 	}
-	if b, err := json.Marshal(v); err == nil {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	var anyVal any
+	if err := json.Unmarshal(b, &anyVal); err != nil {
 		return datatypes.JSON(b)
 	}
-	return nil
+	out, err := json.Marshal(redact(anyVal))
+	if err != nil {
+		return datatypes.JSON(b)
+	}
+	return datatypes.JSON(out)
 }

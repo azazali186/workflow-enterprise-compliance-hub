@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/aeroxe/compliance-hub/backend/internal/cache"
+	"github.com/aeroxe/compliance-hub/backend/internal/config"
 )
 
 // recovery recovers panics and returns a 500 instead of crashing the process.
@@ -27,12 +28,16 @@ func recovery() app.HandlerFunc {
 	}
 }
 
-// requestID assigns a UUID to every request and echoes it back.
+// requestID assigns a UUID v7 to every request and echoes it back.
 func requestID() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		rid := string(c.GetHeader("X-Request-ID"))
 		if rid == "" {
-			rid = uuid.NewString()
+			if id, err := uuid.NewV7(); err == nil {
+				rid = id.String()
+			} else {
+				rid = uuid.NewString() // unreachable in practice; keeps the header set
+			}
 		}
 		c.Header("X-Request-ID", rid)
 		c.Next(ctx)
@@ -55,19 +60,36 @@ func logging(logger *slog.Logger) app.HandlerFunc {
 	}
 }
 
-// cors allows cross-origin browser clients (React dashboard, etc).
-func cors() app.HandlerFunc {
+// cors handles cross-origin browser clients behind an explicit allowlist.
+//
+// Security posture: when CORS_ALLOWED_ORIGINS is configured, only those
+// origins are reflected and credentials (cookies / Authorization) are
+// allowed. Without an allowlist the API answers "*" with credentials
+// disabled — reflecting any origin with Allow-Credentials would let any site
+// read authenticated responses, so that combination is never emitted.
+func cors(cfg *config.Config) app.HandlerFunc {
+	allowed := make(map[string]bool, len(cfg.CORSAllowedOrigins))
+	for _, o := range cfg.CORSAllowedOrigins {
+		allowed[o] = true
+	}
 	return func(ctx context.Context, c *app.RequestContext) {
 		origin := string(c.GetHeader("Origin"))
-		if origin != "" {
+		switch {
+		case origin != "" && allowed[origin]:
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Credentials", "true")
-		} else {
-			c.Header("Access-Control-Allow-Origin", "*")
+		case origin == "":
+			// Non-browser clients (curl, services) need no CORS headers.
+		default:
+			// Disallowed origin: no CORS headers, so the browser blocks the
+			// response from being read.
 		}
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID, X-Request-ID")
 		c.Header("Access-Control-Max-Age", "86400")
+		// The response varies by Origin: shared caches must not serve a
+		// credentialed response to a disallowed origin.
+		c.Header("Vary", "Origin")
 
 		if string(c.Method()) == "OPTIONS" {
 			c.AbortWithStatus(consts.StatusNoContent)
