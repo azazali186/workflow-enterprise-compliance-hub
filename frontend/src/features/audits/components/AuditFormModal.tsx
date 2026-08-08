@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { statusMeta } from "@/lib/constants";
@@ -118,11 +119,11 @@ export function AuditFormModal({ open, onClose, audit, onSubmit, submitting }: A
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Compliance id" htmlFor="audit-compliance" hint="Optional UUID of the compliance record.">
-            <Input id="audit-compliance" value={complianceId} onChange={(e) => setComplianceId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+          <Field label="Compliance" htmlFor="audit-compliance" hint="Optional compliance record.">
+            <SearchableSelect id="audit-compliance" entity="compliances" value={complianceId} onChange={setComplianceId} placeholder="Search compliance…" />
           </Field>
-          <Field label="Auditor" htmlFor="audit-auditor" hint="Optional auditor id.">
-            <Input id="audit-auditor" value={auditorId} onChange={(e) => setAuditorId(e.target.value)} />
+          <Field label="Auditor" htmlFor="audit-auditor" hint="Optional operator account.">
+            <SearchableSelect id="audit-auditor" entity="users" value={auditorId} onChange={setAuditorId} placeholder="Search user…" />
           </Field>
         </div>
       </form>

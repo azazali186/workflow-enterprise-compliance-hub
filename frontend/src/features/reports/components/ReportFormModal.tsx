@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { reportTypeLabel, statusMeta } from "@/lib/constants";
@@ -126,8 +127,8 @@ export function ReportFormModal({ open, onClose, report, mode, onSubmit, submitt
           <Textarea id="report-description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
 
-        <Field label="Compliance id" htmlFor="report-compliance" hint="Optional UUID — leave empty for a global report.">
-          <Input id="report-compliance" value={complianceId} onChange={(e) => setComplianceId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+        <Field label="Compliance" htmlFor="report-compliance" hint="Optional — leave empty for a global report.">
+          <SearchableSelect id="report-compliance" entity="compliances" value={complianceId} onChange={setComplianceId} placeholder="Search compliance…" />
         </Field>
       </form>
     </Modal>

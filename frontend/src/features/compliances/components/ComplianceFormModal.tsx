@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { ApiError } from "@/types/api";
@@ -127,16 +128,16 @@ export function ComplianceFormModal({ open, onClose, compliance, onSubmit, submi
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Owner" htmlFor="compliance-owner" hint="Optional operator id.">
-            <Input id="compliance-owner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)} />
+          <Field label="Owner" htmlFor="compliance-owner" hint="Optional operator account.">
+            <SearchableSelect id="compliance-owner" entity="users" value={ownerId} onChange={setOwnerId} placeholder="Search user…" />
           </Field>
           <Field label="Due date" htmlFor="compliance-due">
             <Input id="compliance-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </Field>
         </div>
 
-        <Field label="Regulation id" htmlFor="compliance-regulation" hint="Optional UUID of the governing regulation.">
-          <Input id="compliance-regulation" value={regulationId} onChange={(e) => setRegulationId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+        <Field label="Regulation" htmlFor="compliance-regulation" hint="Optional governing regulation.">
+          <SearchableSelect id="compliance-regulation" entity="regulations" value={regulationId} onChange={setRegulationId} placeholder="Search regulation…" />
         </Field>
       </form>
     </Modal>

@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
-import { ApiError } from "@/types/api";
-import { USER_STATUSES, type Role, type User } from "@/types/entities";
 import { statusMeta } from "@/lib/constants";
+import { ApiError } from "@/types/api";
+import { USER_STATUSES, type User } from "@/types/entities";
 
 export interface UserFormValues {
   username: string;
@@ -20,23 +21,12 @@ export interface UserFormModalProps {
   open: boolean;
   onClose: () => void;
   user: User | null;
-  roles: Role[];
-  rolesLoading: boolean;
   canUpdate: boolean;
   onSubmit: (values: UserFormValues) => Promise<void>;
   submitting: boolean;
 }
 
-export function UserFormModal({
-  open,
-  onClose,
-  user,
-  roles,
-  rolesLoading,
-  canUpdate,
-  onSubmit,
-  submitting,
-}: UserFormModalProps) {
+export function UserFormModal({ open, onClose, user, canUpdate, onSubmit, submitting }: UserFormModalProps) {
   const isEdit = Boolean(user);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -52,14 +42,12 @@ export function UserFormModal({
     setUsername(user?.username ?? "");
     setEmail(user?.email ?? "");
     setPassword("");
-    setRoleId(user?.role_id ?? roles[0]?.id ?? "");
+    setRoleId(user?.role_id ?? "");
     setStatus(user?.status ?? "active");
     setErrors({});
     setSubmitError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user?.id]);
-
-  const roleOptions = roles.map((r) => ({ value: r.id, label: r.name }));
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -129,13 +117,13 @@ export function UserFormModal({
         </Field>
 
         <Field label="Role" htmlFor="user-role" required error={errors.role_id} hint="The role defines which routes this account can use.">
-          <Select
+          <SearchableSelect
             id="user-role"
+            entity="roles"
             value={roleId}
-            onChange={(e) => setRoleId(e.target.value)}
-            placeholder={rolesLoading ? "Loading roles…" : "Select a role"}
-            options={roleOptions}
-            disabled={rolesLoading || (!isEdit && roleOptions.length === 0)}
+            onChange={setRoleId}
+            placeholder="Search role…"
+            invalid={Boolean(errors.role_id)}
           />
         </Field>
 

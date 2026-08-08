@@ -282,8 +282,6 @@ export function UsersPage() {
           setEditTarget(null);
         }}
         user={editTarget}
-        roles={rolesQuery.data ?? []}
-        rolesLoading={rolesQuery.isPending}
         canUpdate={canUpdate}
         onSubmit={async (values) => {
           if (editTarget) await updateUser.mutateAsync({ id: editTarget.id, ...values });

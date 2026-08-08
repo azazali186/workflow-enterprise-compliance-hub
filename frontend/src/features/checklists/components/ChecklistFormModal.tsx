@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { statusMeta } from "@/lib/constants";
@@ -130,11 +131,11 @@ export function ChecklistFormModal({ open, onClose, checklist, onSubmit, submitt
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Compliance id" htmlFor="checklist-compliance" hint="Optional UUID of the compliance record.">
-            <Input id="checklist-compliance" value={complianceId} onChange={(e) => setComplianceId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+          <Field label="Compliance" htmlFor="checklist-compliance" hint="Optional compliance record.">
+            <SearchableSelect id="checklist-compliance" entity="compliances" value={complianceId} onChange={setComplianceId} placeholder="Search compliance…" />
           </Field>
-          <Field label="Owner" htmlFor="checklist-owner" hint="Optional owner id.">
-            <Input id="checklist-owner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)} />
+          <Field label="Owner" htmlFor="checklist-owner" hint="Optional operator account.">
+            <SearchableSelect id="checklist-owner" entity="users" value={ownerId} onChange={setOwnerId} placeholder="Search user…" />
           </Field>
         </div>
 

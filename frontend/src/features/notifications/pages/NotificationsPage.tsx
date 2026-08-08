@@ -7,10 +7,12 @@ import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useAuth } from "@/hooks/useAuth";
-import { severityMeta } from "@/lib/constants";
+import { ENTITY_TYPES, severityMeta } from "@/lib/constants";
+import { ENTITY_TYPE_TO_OPTION } from "@/services/options.service";
 import { formatDateTime } from "@/lib/format";
 import { PERM } from "@/services/api/paths";
 import { notificationsApi } from "@/services/notifications.service";
@@ -130,10 +132,26 @@ export function NotificationsPage() {
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Entity type" htmlFor="notif-entity-type" hint="Optional context link.">
-                <Input id="notif-entity-type" value={entityType} onChange={(e) => setEntityType(e.target.value)} placeholder="e.g. compliance" />
+                <Select
+                  id="notif-entity-type"
+                  value={entityType}
+                  onChange={(e) => {
+                    setEntityType(e.target.value);
+                    setEntityId("");
+                  }}
+                  placeholder="No entity"
+                  options={ENTITY_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                />
               </Field>
-              <Field label="Entity id" htmlFor="notif-entity-id">
-                <Input id="notif-entity-id" value={entityId} onChange={(e) => setEntityId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+              <Field label="Entity" htmlFor="notif-entity-id">
+                <SearchableSelect
+                  id="notif-entity-id"
+                  entity={ENTITY_TYPE_TO_OPTION[entityType] ?? "compliances"}
+                  value={entityId}
+                  onChange={setEntityId}
+                  placeholder={entityType ? `Search ${entityType.replace("_", " ")}…` : "Select an entity type first"}
+                  disabled={!ENTITY_TYPE_TO_OPTION[entityType]}
+                />
               </Field>
             </div>
             <Button type="submit" loading={sendMutation.isPending} className="w-full">

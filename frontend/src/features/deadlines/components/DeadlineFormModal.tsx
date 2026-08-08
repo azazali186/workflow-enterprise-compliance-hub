@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { statusMeta } from "@/lib/constants";
+import { ENTITY_TYPES, statusMeta } from "@/lib/constants";
+import { ENTITY_TYPE_TO_OPTION } from "@/services/options.service";
 import { ApiError } from "@/types/api";
 import { DEADLINE_STATUSES, type Deadline } from "@/types/entities";
 
@@ -119,11 +121,27 @@ export function DeadlineFormModal({ open, onClose, deadline, onSubmit, submittin
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Entity type" htmlFor="deadline-entity-type" hint="e.g. compliance, audit.">
-            <Input id="deadline-entity-type" value={entityType} onChange={(e) => setEntityType(e.target.value)} />
+          <Field label="Entity type" htmlFor="deadline-entity-type" hint="What the deadline belongs to.">
+            <Select
+              id="deadline-entity-type"
+              value={entityType}
+              onChange={(e) => {
+                setEntityType(e.target.value);
+                setEntityId("");
+              }}
+              placeholder="Select an entity type"
+              options={ENTITY_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+            />
           </Field>
-          <Field label="Entity id" htmlFor="deadline-entity-id" hint="Optional UUID the deadline belongs to.">
-            <Input id="deadline-entity-id" value={entityId} onChange={(e) => setEntityId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+          <Field label="Entity" htmlFor="deadline-entity-id" hint="Pick the linked record.">
+            <SearchableSelect
+              id="deadline-entity-id"
+              entity={ENTITY_TYPE_TO_OPTION[entityType] ?? "compliances"}
+              value={entityId}
+              onChange={setEntityId}
+              placeholder={entityType ? `Search ${entityType.replace("_", " ")}…` : "Select an entity type first"}
+              disabled={!ENTITY_TYPE_TO_OPTION[entityType]}
+            />
           </Field>
         </div>
       </form>

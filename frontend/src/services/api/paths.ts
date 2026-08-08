@@ -70,6 +70,8 @@ export const API = {
 
   auditLogsSearch: "/api/v1/audit-logs/search",
   auditLogsGet: "/api/v1/audit-logs/get",
+
+  options: "/api/v1/options",
 } as const;
 
 /** Permission route strings — exact "METHOD path" matches the backend seeds. */
@@ -156,4 +158,6 @@ export const PERM = {
 
   auditLogsSearch: "POST /api/v1/audit-logs/search",
   auditLogsGet: "POST /api/v1/audit-logs/get",
+
+  options: "POST /api/v1/options",
 } as const;

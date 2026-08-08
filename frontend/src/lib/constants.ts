@@ -102,3 +102,15 @@ export const entityLabels: Record<string, string> = {
 export function entityLabel(key?: string | null): string {
   return (key && entityLabels[key]) || key || "—";
 }
+
+/** Entity_type options for polymorphic refs (deadlines, notifications). The
+ * backend stores the type as free-form text; this curated list drives the picker. */
+export const ENTITY_TYPES: Array<{ value: string; label: string }> = [
+  { value: "compliance", label: "Compliance" },
+  { value: "audit", label: "Audit" },
+  { value: "violation", label: "Violation" },
+  { value: "regulation", label: "Regulation" },
+  { value: "checklist", label: "Checklist" },
+  { value: "corrective_action", label: "Corrective action" },
+  { value: "report", label: "Report" },
+];

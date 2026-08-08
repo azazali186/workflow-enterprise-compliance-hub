@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { statusMeta, severityMeta } from "@/lib/constants";
@@ -123,11 +124,11 @@ export function ViolationFormModal({ open, onClose, violation, onSubmit, submitt
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Compliance id" htmlFor="violation-compliance" hint="Optional UUID of the compliance record.">
-            <Input id="violation-compliance" value={complianceId} onChange={(e) => setComplianceId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+          <Field label="Compliance" htmlFor="violation-compliance" hint="Optional compliance record.">
+            <SearchableSelect id="violation-compliance" entity="compliances" value={complianceId} onChange={setComplianceId} placeholder="Search compliance…" />
           </Field>
-          <Field label="Regulation id" htmlFor="violation-regulation" hint="Optional UUID of the governing regulation.">
-            <Input id="violation-regulation" value={regulationId} onChange={(e) => setRegulationId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+          <Field label="Regulation" htmlFor="violation-regulation" hint="Optional governing regulation.">
+            <SearchableSelect id="violation-regulation" entity="regulations" value={regulationId} onChange={setRegulationId} placeholder="Search regulation…" />
           </Field>
         </div>
       </form>

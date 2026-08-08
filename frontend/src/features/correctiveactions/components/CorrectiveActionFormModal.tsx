@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { statusMeta } from "@/lib/constants";
@@ -118,11 +119,11 @@ export function CorrectiveActionFormModal({ open, onClose, action, onSubmit, sub
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Violation id" htmlFor="ca-violation" hint="Optional UUID of the violation being remediated.">
-            <Input id="ca-violation" value={violationId} onChange={(e) => setViolationId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+          <Field label="Violation" htmlFor="ca-violation" hint="Optional violation being remediated.">
+            <SearchableSelect id="ca-violation" entity="violations" value={violationId} onChange={setViolationId} placeholder="Search violation…" />
           </Field>
-          <Field label="Owner" htmlFor="ca-owner" hint="Optional owner id.">
-            <Input id="ca-owner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)} />
+          <Field label="Owner" htmlFor="ca-owner" hint="Optional operator account.">
+            <SearchableSelect id="ca-owner" entity="users" value={ownerId} onChange={setOwnerId} placeholder="Search user…" />
           </Field>
         </div>
       </form>
