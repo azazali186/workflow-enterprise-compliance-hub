@@ -293,6 +293,10 @@ func isReadRoute(p models.Permission) bool {
 		return true
 	case strings.HasPrefix(p.Path, "/api/v1/analytics"):
 		return true
+	case p.Path == "/api/v1/options":
+		// Dropdown lookups are read-only; the options handler itself keeps
+		// identity-bearing entities (users, roles) away from viewers.
+		return true
 	case p.Path == "/events" || p.Path == "/api/v1/notifications/events":
 		return true
 	case p.Path == "/api/v1/auth/me" || p.Path == "/api/v1/auth/logout":

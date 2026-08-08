@@ -20,6 +20,7 @@ import (
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/correctiveaction"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/deadline"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/notification"
+	"github.com/aeroxe/compliance-hub/backend/internal/modules/options"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/regulation"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/reporting"
 	rolemodule "github.com/aeroxe/compliance-hub/backend/internal/modules/role"
@@ -53,6 +54,7 @@ func registerRoutes(h *server.Hertz, d deps.Deps, cfg *config.Config) {
 	reporting.RegisterRoutes(api, d)
 	analytics.RegisterRoutes(api, d)
 	notification.RegisterRoutes(api, d)
+	options.RegisterRoutes(api, d)
 	violation.RegisterRoutes(api, d)
 	correctiveaction.RegisterRoutes(api, d)
 	deadline.RegisterRoutes(api, d)
