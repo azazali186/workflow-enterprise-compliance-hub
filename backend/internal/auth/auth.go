@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -83,6 +84,49 @@ func RenewIfNeeded(ctx context.Context, c cache.Cache, userID, expectedHash stri
 	if d, ok := c.TTL(ctx, SessionKey(userID)); ok && d < RenewThreshold {
 		_ = c.Set(ctx, SessionKey(userID), expectedHash, ttl)
 	}
+}
+
+// --- account lockout (failed-login protection, Redis-backed) ---
+
+// LockoutCachePrefix keys the per-account failed-attempt counter.
+const LockoutCachePrefix = "auth:lockout:"
+
+// LockoutMaxFailures is the failed-password/unknown-user threshold after which
+// the account is temporarily locked.
+const LockoutMaxFailures = 5
+
+// LockoutWindow is how long a lock (and the counter) lives before resetting.
+const LockoutWindow = 15 * time.Minute
+
+// LockoutKey returns the cache key for an account's failure counter.
+func LockoutKey(username string) string { return LockoutCachePrefix + username }
+
+// Locked reports whether an account is currently locked out.
+func Locked(ctx context.Context, c cache.Cache, username string) bool {
+	if v, ok := c.Get(ctx, LockoutKey(username)); ok {
+		if n, err := strconv.Atoi(v); err == nil && n >= LockoutMaxFailures {
+			return true
+		}
+	}
+	return false
+}
+
+// RecordLockoutFailure increments the failure counter (window-reset) and
+// returns true when the account crosses into locked-out.
+func RecordLockoutFailure(ctx context.Context, c cache.Cache, username string) bool {
+	count := 1
+	if v, ok := c.Get(ctx, LockoutKey(username)); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			count = n + 1
+		}
+	}
+	_ = c.Set(ctx, LockoutKey(username), strconv.Itoa(count), LockoutWindow)
+	return count >= LockoutMaxFailures
+}
+
+// ClearLockout resets the counter after a successful login.
+func ClearLockout(ctx context.Context, c cache.Cache, username string) {
+	_ = c.Del(ctx, LockoutKey(username))
 }
 
 // HashPassword bcrypt-hashes a plaintext password.

@@ -43,6 +43,8 @@ func isPublic(method, path string) bool {
 	switch {
 	case method == "GET" && path == "/health":
 		return true
+	case method == "GET" && path == "/health/ready":
+		return true
 	case method == "GET" && path == "/metrics":
 		return true
 	case strings.HasPrefix(path, "/swagger"):
@@ -283,6 +285,10 @@ func filterPermissions(perms []models.Permission, keep func(models.Permission) b
 // so a read-only user can still manage their own session.
 func isReadRoute(p models.Permission) bool {
 	switch {
+	case strings.HasPrefix(p.Path, "/api/v1/users"):
+		// User administration (profiles, roles, emails) stays with admins and
+		// officers; the read-only viewer role never sees /api/v1/users.
+		return false
 	case strings.HasSuffix(p.Path, "/search"), strings.HasSuffix(p.Path, "/get"):
 		return true
 	case strings.HasPrefix(p.Path, "/api/v1/analytics"):

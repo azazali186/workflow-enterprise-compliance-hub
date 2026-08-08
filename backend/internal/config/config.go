@@ -33,6 +33,8 @@ type Config struct {
 	DeadlineJobInterval    time.Duration
 	MaxBodySize            int
 	OutboxPollInterval     time.Duration
+	AuditRetentionDays     int
+	AuditRetentionInterval time.Duration
 	AdminUsername          string
 	AdminPassword          string
 	SyncPermissionsOnStart bool
@@ -72,6 +74,14 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	retentionDays, err := parseInt("AUDIT_RETENTION_DAYS", 365)
+	if err != nil {
+		return nil, err
+	}
+	retentionInterval, err := parseDuration("AUDIT_RETENTION_INTERVAL", 24*time.Hour)
+	if err != nil {
+		return nil, err
+	}
 
 	cfg := &Config{
 		ServerAddr:             ":" + port,
@@ -93,6 +103,8 @@ func Load() (*Config, error) {
 		DeadlineJobInterval:    deadlineInterval,
 		MaxBodySize:            maxBodySize,
 		OutboxPollInterval:     outboxInterval,
+		AuditRetentionDays:     retentionDays,
+		AuditRetentionInterval: retentionInterval,
 		AdminUsername:          getEnv("ADMIN_USERNAME", "admin"),
 		AdminPassword:          getEnv("ADMIN_PASSWORD", "admin123"),
 		SyncPermissionsOnStart: os.Getenv("AUTO_SYNC_PERMISSIONS") != "false",

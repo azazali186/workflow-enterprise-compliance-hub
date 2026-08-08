@@ -85,6 +85,9 @@ func (m *memoryCache) TTL(_ context.Context, key string) (time.Duration, bool) {
 	return d, true
 }
 
+// Ping reports the in-memory backend is always reachable.
+func (m *memoryCache) Ping(_ context.Context) error { return nil }
+
 // Keys returns keys matching a glob pattern ("*" wildcards). The in-memory
 // backend supports the leading/trailing wildcard shapes the application uses.
 func (m *memoryCache) Keys(_ context.Context, pattern string) ([]string, error) {

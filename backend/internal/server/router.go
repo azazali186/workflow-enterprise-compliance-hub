@@ -5,6 +5,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
 	"github.com/aeroxe/compliance-hub/backend/internal/config"
 	"github.com/aeroxe/compliance-hub/backend/internal/deps"
@@ -22,6 +23,7 @@ import (
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/regulation"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/reporting"
 	sagamodule "github.com/aeroxe/compliance-hub/backend/internal/modules/saga"
+	usermodule "github.com/aeroxe/compliance-hub/backend/internal/modules/user"
 	"github.com/aeroxe/compliance-hub/backend/internal/modules/violation"
 	"github.com/aeroxe/compliance-hub/backend/internal/permissions"
 	"github.com/aeroxe/compliance-hub/backend/internal/rbac"
@@ -54,6 +56,7 @@ func registerRoutes(h *server.Hertz, d deps.Deps, cfg *config.Config) {
 	correctiveaction.RegisterRoutes(api, d)
 	deadline.RegisterRoutes(api, d)
 	sagamodule.RegisterRoutes(api, d)
+	usermodule.RegisterRoutes(api, d)
 
 	// Platform endpoints.
 	h.POST("/events", eventsHandler(d))
@@ -70,6 +73,33 @@ func registerRoutes(h *server.Hertz, d deps.Deps, cfg *config.Config) {
 		c.Response.SetBody(spec)
 	})
 	h.GET("/swagger/*any", swagger.Handler())
+
+	// Readiness probe: real dependency checks (Postgres + cache), public so
+	// orchestrators can gate traffic without credentials.
+	h.GET("/health/ready", func(ctx context.Context, c *app.RequestContext) {
+		checks := map[string]string{}
+		ready := true
+		sqlDB, err := d.DB.DB()
+		if err != nil || sqlDB.PingContext(ctx) != nil {
+			checks["database"] = "down"
+			ready = false
+		} else {
+			checks["database"] = "ok"
+		}
+		if err := d.Cache.Ping(ctx); err != nil {
+			checks["cache"] = "down"
+			ready = false
+		} else {
+			checks["cache"] = "ok"
+		}
+		if ready {
+			respond.OK(c, map[string]any{"status": "ready", "checks": checks})
+			return
+		}
+		c.JSON(consts.StatusServiceUnavailable, map[string]any{
+			"success": false, "status": "unavailable", "checks": checks,
+		})
+	})
 
 	// The WebSocket handshake is public to rbac (browsers cannot send
 	// Authorization headers), so the hub validates the bearer token itself

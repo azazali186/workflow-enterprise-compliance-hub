@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/cloudwego/hertz/pkg/route"
 	"gorm.io/gorm"
 
@@ -51,9 +52,22 @@ func (h *Handler) login(ctx context.Context, c *app.RequestContext) {
 	}
 	_, ip, userAgent := auditlog.FromRequest(c) // login is public: no pre-auth actor
 
+	// Account lockout: reject before touching the DB when the account is
+	// temporarily locked after repeated failures.
+	if auth.Locked(ctx, h.cache, req.Username) {
+		h.logLogin(ctx, c, auditlog.Entry{
+			Action: "login", Status: "failure", EntityType: "user",
+			ActorID: req.Username, IP: ip, UserAgent: userAgent,
+			Metadata: map[string]any{"username": req.Username, "reason": "account locked"},
+		})
+		respond.Error(c, consts.StatusLocked, "account_locked", errors.New("account temporarily locked, try again later"))
+		return
+	}
+
 	var user models.User
 	err := h.db.WithContext(ctx).Preload("Role").Where("username = ? AND status = ?", req.Username, "active").First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		auth.RecordLockoutFailure(ctx, h.cache, req.Username)
 		h.logLogin(ctx, c, auditlog.Entry{
 			Action: "login", Status: "failure", EntityType: "user",
 			ActorID: req.Username, IP: ip, UserAgent: userAgent,
@@ -67,6 +81,7 @@ func (h *Handler) login(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	if !auth.CheckPassword(user.PasswordHash, req.Password) {
+		auth.RecordLockoutFailure(ctx, h.cache, req.Username)
 		h.logLogin(ctx, c, auditlog.Entry{
 			Action: "login", Status: "failure", EntityType: "user",
 			EntityID: user.ID, ActorID: user.ID.String(), IP: ip, UserAgent: userAgent,
@@ -75,6 +90,7 @@ func (h *Handler) login(ctx context.Context, c *app.RequestContext) {
 		respond.Unauthorized(c)
 		return
 	}
+	auth.ClearLockout(ctx, h.cache, req.Username)
 
 	roleCode := ""
 	if user.Role != nil {

@@ -4,14 +4,11 @@ package database
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
-
-	"github.com/aeroxe/compliance-hub/backend/internal/models"
 )
 
 // Connect opens the PostgreSQL connection through GORM and configures the
@@ -33,15 +30,6 @@ func Connect(dsn string, logLevel string) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
 	return db, nil
-}
-
-// Migrate applies the full schema (all tables) via GORM AutoMigrate.
-func Migrate(db *gorm.DB) error {
-	if err := db.AutoMigrate(models.All()...); err != nil {
-		return fmt.Errorf("auto migrate: %w", err)
-	}
-	slog.Info("database schema is up to date")
-	return nil
 }
 
 func gormLoggerFor(level string) gormlogger.Interface {

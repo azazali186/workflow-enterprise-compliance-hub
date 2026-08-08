@@ -26,6 +26,8 @@ type Cache interface {
 	// Keys lists keys matching a glob pattern (used by the saga timeout
 	// sweeper to find in-flight state).
 	Keys(ctx context.Context, pattern string) ([]string, error)
+	// Ping verifies the backend is reachable (readiness probe).
+	Ping(ctx context.Context) error
 }
 
 // New creates the configured cache backend. It never returns nil: when Redis

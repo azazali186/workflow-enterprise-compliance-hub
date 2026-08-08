@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -112,9 +113,12 @@ func (s *Service) completeError(c *app.RequestContext, err error) {
 
 // RunJob periodically evaluates open deadlines and publishes approaching /
 // overdue events (README WebSocket event: deadline_approaching). A distributed
-// lock prevents duplicate processing across replicas.
-func RunJob(ctx context.Context, d deps.Deps, l lock.Lock, interval time.Duration) {
+// lock prevents duplicate processing across replicas. The supplied WaitGroup
+// is tracked so graceful shutdown can await the job's final tick.
+func RunJob(ctx context.Context, d deps.Deps, l lock.Lock, interval time.Duration, wg *sync.WaitGroup) {
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		slog.Info("deadline job started", "interval", interval.String())
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
