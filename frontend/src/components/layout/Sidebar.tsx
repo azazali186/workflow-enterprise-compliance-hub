@@ -36,43 +36,44 @@ interface NavSection {
   items: NavItem[];
 }
 
+// The console lives under /app (the marketing landing owns /).
 const NAV_SECTIONS: NavSection[] = [
   {
     label: "Overview",
-    items: [{ to: "/", label: "Dashboard", icon: LayoutDashboard }],
+    items: [{ to: "/app", label: "Dashboard", icon: LayoutDashboard }],
   },
   {
     label: "Compliance",
     items: [
-      { to: "/compliances", label: "Compliances", icon: ShieldCheck, perm: PERM.compliancesSearch },
-      { to: "/regulations", label: "Regulations", icon: Scale, perm: PERM.regulationsSearch },
-      { to: "/checklists", label: "Checklists", icon: ListChecks, perm: PERM.checklistsSearch },
-      { to: "/audits", label: "Audits", icon: ClipboardCheck, perm: PERM.auditsSearch },
-      { to: "/violations", label: "Violations", icon: AlertTriangle, perm: PERM.violationsSearch },
+      { to: "/app/compliances", label: "Compliances", icon: ShieldCheck, perm: PERM.compliancesSearch },
+      { to: "/app/regulations", label: "Regulations", icon: Scale, perm: PERM.regulationsSearch },
+      { to: "/app/checklists", label: "Checklists", icon: ListChecks, perm: PERM.checklistsSearch },
+      { to: "/app/audits", label: "Audits", icon: ClipboardCheck, perm: PERM.auditsSearch },
+      { to: "/app/violations", label: "Violations", icon: AlertTriangle, perm: PERM.violationsSearch },
     ],
   },
   {
     label: "Operations",
     items: [
-      { to: "/alerts", label: "Alerts", icon: Bell, perm: PERM.alertsSearch },
-      { to: "/deadlines", label: "Deadlines", icon: CalendarClock, perm: PERM.deadlinesSearch },
-      { to: "/corrective-actions", label: "Corrective actions", icon: Wrench, perm: PERM.correctiveActionsSearch },
-      { to: "/reports", label: "Reports", icon: FileText, perm: PERM.reportsSearch },
-      { to: "/notifications", label: "Notifications", icon: Send, perm: PERM.notificationsSend },
+      { to: "/app/alerts", label: "Alerts", icon: Bell, perm: PERM.alertsSearch },
+      { to: "/app/deadlines", label: "Deadlines", icon: CalendarClock, perm: PERM.deadlinesSearch },
+      { to: "/app/corrective-actions", label: "Corrective actions", icon: Wrench, perm: PERM.correctiveActionsSearch },
+      { to: "/app/reports", label: "Reports", icon: FileText, perm: PERM.reportsSearch },
+      { to: "/app/notifications", label: "Notifications", icon: Send, perm: PERM.notificationsSend },
     ],
   },
   {
     label: "Intelligence",
     items: [
-      { to: "/analytics", label: "Analytics", icon: BarChart3, perm: PERM.analyticsSummary },
-      { to: "/sagas", label: "Sagas", icon: Workflow, perm: PERM.sagasSearch },
+      { to: "/app/analytics", label: "Analytics", icon: BarChart3, perm: PERM.analyticsSummary },
+      { to: "/app/sagas", label: "Sagas", icon: Workflow, perm: PERM.sagasSearch },
     ],
   },
   {
     label: "Administration",
     items: [
-      { to: "/audit-logs", label: "Audit log", icon: ScrollText, perm: PERM.auditLogsSearch },
-      { to: "/users", label: "Users", icon: Users, perm: PERM.usersSearch },
+      { to: "/app/audit-logs", label: "Audit log", icon: ScrollText, perm: PERM.auditLogsSearch },
+      { to: "/app/users", label: "Users", icon: Users, perm: PERM.usersSearch },
     ],
   },
 ];

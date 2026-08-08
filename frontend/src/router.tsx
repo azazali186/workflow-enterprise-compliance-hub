@@ -8,6 +8,7 @@ import { setToken } from "@/services/api/client";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { authActions } from "@/store/auth.slice";
 
+const LandingPage = lazy(() => import("@/features/landing/pages/LandingPage").then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage").then((m) => ({ default: m.LoginPage })));
 const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const UsersPage = lazy(() => import("@/features/users/pages/UsersPage").then((m) => ({ default: m.UsersPage })));
@@ -76,6 +77,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   {
+    path: "/",
+    element: (
+      <Lazy>
+        <LandingPage />
+      </Lazy>
+    ),
+  },
+  {
     path: "/login",
     element: (
       <Lazy>
@@ -84,7 +93,8 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: "/",
+    // The authenticated console lives under /app; the marketing landing owns /.
+    path: "/app",
     element: (
       <RequireAuth>
         <SessionBootstrap>
@@ -108,7 +118,8 @@ export const router = createBrowserRouter([
       { path: "sagas", element: (<Lazy><SagasPage /></Lazy>) },
       { path: "audit-logs", element: (<Lazy><AuditLogsPage /></Lazy>) },
       { path: "users", element: (<Lazy><UsersPage /></Lazy>) },
-      { path: "*", element: <Navigate to="/" replace /> },
+      { path: "*", element: <Navigate to="/app" replace /> },
     ],
   },
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);

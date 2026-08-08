@@ -5,11 +5,11 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Dropdown } from "@/components/ui/Dropdown";
 
 const TITLES: Record<string, string> = {
-  "/": "Dashboard",
-  "/compliances": "Compliances",
-  "/alerts": "Alerts",
-  "/audit-logs": "Audit log",
-  "/users": "Users",
+  "/app": "Dashboard",
+  "/app/compliances": "Compliances",
+  "/app/alerts": "Alerts",
+  "/app/audit-logs": "Audit log",
+  "/app/users": "Users",
 };
 
 export interface HeaderProps {

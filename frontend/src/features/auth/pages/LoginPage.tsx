@@ -44,7 +44,7 @@ export function LoginPage() {
       } catch {
         /* the route guard retries /me on the next render */
       }
-      navigate("/", { replace: true });
+      navigate("/app", { replace: true });
     } catch (err) {
       setError(ApiError.is(err) ? err.userMessage : "Sign-in failed — please try again.");
       setLoading(false);

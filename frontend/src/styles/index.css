@@ -11,6 +11,9 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
 
+  /* Landing display face — geometric, technical, distinct from Inter */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
   /* Brand — iris */
   --color-primary-50: #eef0fd;
   --color-primary-100: #e0e2fb;
@@ -163,6 +166,42 @@
     }
     to {
       opacity: 1;
+    }
+  }
+
+  /* --- Landing page helpers (public marketing surface) --- */
+
+  /* Blueprint grid backdrop for dark hero / CTA bands */
+  .landing-grid {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.07) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  /* Scan-line sweep across the live compliance monitor */
+  .landing-scan {
+    position: absolute;
+    inset-inline: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgb(107 104 224 / 0.7), transparent);
+    box-shadow: 0 0 14px 2px rgb(107 104 224 / 0.45);
+    animation: landing-scan 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+  @keyframes landing-scan {
+    0% {
+      top: 0%;
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    92% {
+      opacity: 1;
+    }
+    100% {
+      top: 100%;
+      opacity: 0;
     }
   }
 }
